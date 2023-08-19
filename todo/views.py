@@ -1,76 +1,26 @@
+# importing django
+from django.contrib.auth.models import User
+from django.shortcuts import get_object_or_404
+
+# importing rest_framework
 from rest_framework.views import APIView
-from rest_framework.authentication import TokenAuthentication, BasicAuthentication
-from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.request import Request
 from rest_framework import status
-from django.contrib.auth.models import User
+from rest_framework.authentication import TokenAuthentication, BasicAuthentication
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.authtoken.models import Token
 from rest_framework.authtoken.views import ObtainAuthToken
-from django.shortcuts import get_object_or_404
 
+# importing models
 from .models import Task, Category
 
-from .serializers import TaskSerializer, CategorySerializer, UserRegisterSerializer
-
-
-class TaskListView(APIView):
-    """
-    API view for managing tasks.
-
-    This view allows authenticated users to list and create tasks.
-
-    Methods:
-        get(request: Request) -> Response:
-            Retrieve a list of tasks for the authenticated user.
-
-        post(request: Request) -> Response:
-            Create a new task for the authenticated user.
-
-    Note:
-        Tasks can be filtered by various parameters, such as category and priority.
-    """
-    
-    authentication_classes = [TokenAuthentication]
-    permission_classes = [IsAuthenticated]
-    
-    def get(self, request: Request) -> Response:
-        """
-        Retrieve a list of tasks for the authenticated user.
-
-        Returns:
-            Response: A JSON response containing a list of tasks.
-        """
-        params = request.query_params
-
-        category = params.get('category', False)
-        priority = params.get('priority', False)
-
-        if category and priority:
-            tasks = Task.objects.filter(user=request.user, category__name__icontains=category, priority__icontains=priority)
-        else:
-            tasks = Task.objects.filter(user=request.user)
-        
-        serializer = TaskSerializer(tasks, many=True)
-
-        return Response(serializer.data, status=status.HTTP_200_OK)
-
-    def post(self, request: Request) -> Response:
-        """
-        Create a new task for the authenticated user.
-
-        Args:
-            request (Request): The request containing task data.
-
-        Returns:
-            Response: A JSON response containing the created task data.
-        """
-        request.data['user'] = request.user.id
-        serializer = TaskSerializer(data=request.data)
-        if serializer.is_valid():
-            serializer.save(user=request.user)
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+# importing serializers
+from .serializers import (
+    UserRegisterSerializer,
+    CategorySerializer, 
+    TaskSerializer, TaskCreateSerializer, 
+)
 
 
 class UserRegistrationView(APIView):
@@ -136,6 +86,117 @@ class UserLoginView(APIView):
         """
         token, created = Token.objects.get_or_create(user=request.user)
         return Response({'token': token.key, 'message': 'User registered successfully'}, status=status.HTTP_201_CREATED)
+
+
+class CategoryListView(APIView):
+    """
+    API view for managing categories.
+
+    This view allows authenticated users to list and create categories.
+
+    Methods:
+        get(request: Request) -> Response:
+            Retrieve a list of categories for the authenticated user.
+
+        post(request: Request) -> Response:
+            Create a new category for the authenticated user.
+
+    Note:
+        Categories can be filtered by name.
+    """
+    
+    authentication_classes = [TokenAuthentication]
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request: Request) -> Response:
+        """
+        Retrieve a list of categories for the authenticated user.
+
+        Returns:
+            Response: A JSON response containing a list of categories.
+        """
+
+        categories = Category.objects.filter(user=request.user)
+        
+        serializer = CategorySerializer(categories, many=True)
+
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    def post(self, request: Request) -> Response:
+        """
+        Create a new category for the authenticated user.
+
+        Args:
+            request (Request): The request containing category data.
+
+        Returns:
+            Response: A JSON response containing the created category data.
+        """
+        request.data['user'] = request.user.id
+        serializer = CategorySerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save(user=request.user)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class TaskListView(APIView):
+    """
+    API view for managing tasks.
+
+    This view allows authenticated users to list and create tasks.
+
+    Methods:
+        get(request: Request) -> Response:
+            Retrieve a list of tasks for the authenticated user.
+
+        post(request: Request) -> Response:
+            Create a new task for the authenticated user.
+
+    Note:
+        Tasks can be filtered by various parameters, such as category and priority.
+    """
+    
+    authentication_classes = [TokenAuthentication]
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request: Request) -> Response:
+        """
+        Retrieve a list of tasks for the authenticated user.
+
+        Returns:
+            Response: A JSON response containing a list of tasks.
+        """
+        params = request.query_params
+
+        category = params.get('category', False)
+        priority = params.get('priority', False)
+
+        if category and priority:
+            tasks = Task.objects.filter(user=request.user, category__name__icontains=category, priority__icontains=priority)
+        else:
+            tasks = Task.objects.filter(user=request.user)
+        
+        serializer = TaskSerializer(tasks, many=True)
+
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    def post(self, request: Request) -> Response:
+        """
+        Create a new task for the authenticated user.
+
+        Args:
+            request (Request): The request containing task data.
+
+        Returns:
+            Response: A JSON response containing the created task data.
+        """
+        request.data['user'] = request.user.id
+        serializer = TaskCreateSerializer(data=request.data, context={'request': request})
+        if serializer.is_valid():
+            serializer.save(user=request.user)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 class TaskDetailView(APIView):

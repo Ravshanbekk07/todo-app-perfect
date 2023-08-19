@@ -14,6 +14,55 @@ class TaskSerializer(serializers.ModelSerializer):
         model = Task
         fields = '__all__'
 
+    def to_representation(self, instance):
+        return {
+            'id': instance.id,
+            'title': instance.title,
+            'description': instance.description,
+            'priority': instance.priority,
+            'category': instance.category.name,
+            'due_date': instance.due_date,
+            'completed': instance.completed
+        }
+
+
+class TaskCreateSerializer(serializers.ModelSerializer):
+    """
+    Serializer for task listing and creation.
+    """
+    class Meta:
+        model = Task
+        fields = '__all__'
+
+    def validate_category(self, value):
+        # check if category exists for the user
+        if not Category.objects.filter(user=self.context['request'].user, name=value).exists():
+            raise serializers.ValidationError('This category does not exist.')
+        return value
+
+    def validate_priority(self, value):
+        # check if priority is valid
+        if value not in ['low', 'medium', 'high']:
+            raise serializers.ValidationError('Invalid priority.')
+        return value
+
+    def validate(self, data):
+        # check if task already exists for the user
+        if Task.objects.filter(user=self.context['request'].user, title=data['title']).exists():
+            raise serializers.ValidationError('This task already exists.')
+        return data
+
+    def to_representation(self, instance):
+        return {
+            'id': instance.id,
+            'title': instance.title,
+            'description': instance.description,
+            'priority': instance.priority,
+            'category': instance.category.name,
+            'due_date': instance.due_date,
+            'completed': instance.completed
+        }
+
 
 class CategorySerializer(serializers.ModelSerializer):
     """
@@ -22,6 +71,22 @@ class CategorySerializer(serializers.ModelSerializer):
     class Meta:
         model = Category
         fields = '__all__'
+
+    def create(self, validated_data):
+        # check if category already exists for the user
+        if Category.objects.filter(user=validated_data['user'], name=validated_data['name']).exists():
+            raise serializers.ValidationError('This category already exists.')
+        category = Category.objects.create(
+            user=validated_data['user'],
+            name=validated_data['name']
+        )
+        return category
+
+    def to_representation(self, instance):
+        return {
+            'id': instance.id,
+            'name': instance.name
+        }
 
 
 class UserRegisterSerializer(serializers.Serializer):
