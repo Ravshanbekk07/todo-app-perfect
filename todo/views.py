@@ -7,6 +7,7 @@ from rest_framework import status
 from django.contrib.auth.models import User
 from rest_framework.authtoken.models import Token
 from rest_framework.authtoken.views import ObtainAuthToken
+from django.shortcuts import get_object_or_404
 
 from .models import Task, Category
 
@@ -135,3 +136,78 @@ class UserLoginView(APIView):
         """
         token, created = Token.objects.get_or_create(user=request.user)
         return Response({'token': token.key, 'message': 'User registered successfully'}, status=status.HTTP_201_CREATED)
+
+
+class TaskDetailView(APIView):
+    """
+    API view for retrieving and updating task details.
+
+    This view allows authenticated users to retrieve and update details of a specific task.
+
+    Methods:
+        get(request: Request, pk: int) -> Response:
+            Retrieve details of a specific task.
+
+        put(request: Request, pk: int) -> Response:
+            Update details of a specific task.
+        
+        delete(request: Request, ok: int) -> Response:
+            Delete a specific task.
+
+    Note:
+        Only the owner of the task can update its details.
+    """
+
+    authentication_classes = [TokenAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request: Request, pk: int) -> Response:
+        """
+        Retrieve details of a specific task.
+
+        Args:
+            request (Request): The request.
+            pk (int): The ID of the task to retrieve.
+
+        Returns:
+            Response: A JSON response containing the task details.
+        """
+        task = get_object_or_404(Task, id=pk, user=request.user)
+        
+        serializer = TaskSerializer(task)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    def put(self, request: Request, pk: int) -> Response:
+        """
+        Update details of a specific task.
+
+        Args:
+            request (Request): The request containing updated task data.
+            pk (int): The ID of the task to update.
+
+        Returns:
+            Response: A JSON response containing the updated task details.
+        """
+        task = get_object_or_404(Task, id=pk, user=request.user)
+
+        serializer = TaskSerializer(task, data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def delete(self, request: Request, pk: int) -> Response:
+        """
+        Delete a specific task.
+
+        Args:
+            request (Request): The request.
+            pk (int): The ID of the task to delete.
+
+        Returns:
+            Response: A JSON response containing the deleted message.
+        """
+        task = get_object_or_404(Task, id=pk, user=request.user)
+
+        task.delete()
+        return Response({"message": "Task has been deleted successfully."})
